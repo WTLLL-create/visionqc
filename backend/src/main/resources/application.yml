@@ -1,0 +1,59 @@
+spring:
+  application:
+    name: visionqc-backend
+  datasource:
+    # 本地开发：MySQL97 服务（MySQL 9.7），库名 vqc
+    # 密码通过环境变量 DB_PASSWORD 注入，禁止提交真实密码到仓库
+    url: jdbc:mysql://localhost:3306/vqc?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    username: root
+    password: ${DB_PASSWORD:change-me}
+    hikari:
+      maximum-pool-size: 10
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+  jpa:
+    hibernate:
+      # schema 由 Flyway 管理，Hibernate 只校验不建表
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 60MB
+  session:
+    timeout: 30m
+
+server:
+  port: 8080
+  error:
+    include-message: always
+
+# 业务配置
+app:
+  # 图片存储根目录（文件与元数据分离；Docker 中由卷挂载覆盖为 /data/vqc-storage）
+  storage-root: ${APP_STORAGE_ROOT:./storage}
+  # 单张图片大小上限（字节），与 spring.servlet.multipart.max-file-size 对齐
+  max-image-bytes: 10485760
+  # 最大解码像素数：压缩图可能很小但解压后极大，必须在解码前拦住
+  max-image-pixels: 25000000
+  # 开发环境种子数据：首次启动自动创建 admin 账号（生产关闭）
+  seed-admin: ${APP_SEED_ADMIN:true}
+  seed-admin-password: ${APP_ADMIN_PASSWORD:change-me-admin}
+  # 演示账号（质检员/审核员），仅本地演示开启
+  seed-demo: ${APP_SEED_DEMO:false}
+  seed-inspector-password: ${APP_INSPECTOR_PASSWORD:change-me-inspector}
+  seed-reviewer-password: ${APP_REVIEWER_PASSWORD:change-me-reviewer}
+
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+
+logging:
+  level:
+    com.visionqc: INFO
+    org.hibernate.SQL: WARN

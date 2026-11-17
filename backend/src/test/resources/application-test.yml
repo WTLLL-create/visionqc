@@ -1,0 +1,30 @@
+spring:
+  datasource:
+    # 集成测试使用 Docker MySQL 的独立测试库（不影响开发库 vqc）
+    url: jdbc:mysql://localhost:3307/vqc_test?createDatabaseIfNotExist=true&useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+    username: ${TEST_DB_USERNAME:root}
+    password: ${TEST_DB_PASSWORD:change-me-root}
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 60MB
+
+app:
+  # 测试文件写入临时目录，不污染开发存储卷
+  storage-root: ${java.io.tmpdir}/vqc-test-storage
+  max-image-bytes: 10485760
+  # 测试用较小上限：800x600=48 万像素可上传，1000x600=60 万像素应被拒绝
+  max-image-pixels: 500000
+  seed-admin: false
+  seed-demo: false
+
+logging:
+  level:
+    com.visionqc: INFO

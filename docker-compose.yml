@@ -1,0 +1,65 @@
+services:
+  # MySQL 8：数据库容器（与任务书技术栈一致；本机 9.7 服务与容器互不干扰，端口 3307 避开本机 3306）
+  mysql:
+    image: mysql:8.4
+    container_name: vqc-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-change-me-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-vqc}
+      MYSQL_USER: ${MYSQL_APP_USER:-vqc}
+      MYSQL_PASSWORD: ${MYSQL_APP_PASSWORD:-change-me-app}
+      TZ: Asia/Shanghai
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+    ports:
+      - "3307:3306"
+    volumes:
+      - vqc-mysql-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -h localhost -u root -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+
+  # Spring Boot 后端：构建本地镜像，等待 MySQL 健康后启动
+  backend:
+    build:
+      context: ./backend
+    container_name: vqc-backend
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      SPRING_DATASOURCE_URL: jdbc:mysql://mysql:3306/vqc?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Shanghai&characterEncoding=utf8
+      SPRING_DATASOURCE_USERNAME: ${MYSQL_APP_USER:-vqc}
+      SPRING_DATASOURCE_PASSWORD: ${MYSQL_APP_PASSWORD:-change-me-app}
+      APP_STORAGE_ROOT: /data/vqc-storage
+      APP_SEED_ADMIN: "true"
+      APP_SEED_DEMO: "true"
+      APP_ADMIN_PASSWORD: ${APP_ADMIN_PASSWORD:-change-me-admin}
+      APP_INSPECTOR_PASSWORD: ${APP_INSPECTOR_PASSWORD:-change-me-inspector}
+      APP_REVIEWER_PASSWORD: ${APP_REVIEWER_PASSWORD:-change-me-reviewer}
+      TZ: Asia/Shanghai
+    ports:
+      # 宿主 8080 被 contesthub 项目占用，vqc 后端映射到 18080
+      - "18080:8080"
+    volumes:
+      - vqc-storage:/data/vqc-storage
+    restart: unless-stopped
+
+  # 前端：Nginx 托管构建产物，/api 反向代理到后端（同源部署，Session Cookie 认证无需跨域配置）
+  frontend:
+    build:
+      context: ./frontend
+    container_name: vqc-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    restart: unless-stopped
+
+volumes:
+  vqc-mysql-data:
+  vqc-storage:
